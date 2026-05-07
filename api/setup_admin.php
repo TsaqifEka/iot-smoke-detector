@@ -1,7 +1,7 @@
 <?php
 // connect db
 $host = "localhost";
-$user = "root";
+$user = "tsaqif_db";
 $pass = "Tsaqif123!";
 $dbname = "db_smoke_detector";
 

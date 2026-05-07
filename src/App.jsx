@@ -18,7 +18,7 @@ function App() {
   const [isAuto, setIsAuto] = useState(true);
 
   // URL Server VM (pastikan ada http:// di depannya)
-  const BASE_URL = "http://192.168.1.8/iot-testing/api";
+  const BASE_URL = "http://10.35.96.202/iot-testing/api";
 
   // Efek jam real-time
   useEffect(() => {

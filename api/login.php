@@ -18,7 +18,7 @@ error_reporting(E_ALL);
 
 try {
     // connect db
-    $conn = new mysqli("localhost", "root", "Tsaqif123!", "db_smoke_detector");
+    $conn = new mysqli("localhost", "tsaqif_db", "Tsaqif123!", "db_smoke_detector");
 
     if ($conn->connect_error) {
         throw new Exception("Koneksi DB Gagal: " . $conn->connect_error);
