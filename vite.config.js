@@ -7,7 +7,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  base: './', 
   server: {
-    allowedHosts: true, // Bypass keamanan Vite agar Pinggy/Ngrok bisa masuk
+    allowedHosts: true, 
   },
 })
