@@ -1,6 +1,6 @@
 <?php
 $host = "localhost";
-$user = "root";
+$user = "tsaqif_db";
 $pass = "Tsaqif123!";
 $db   = "db_smoke_detector";
 
