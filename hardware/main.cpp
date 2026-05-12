@@ -5,7 +5,7 @@
 // konfigurasi wifi & server
 const char* ssid = "tsaqif";         
 const char* password = "tsaqif"; 
-const char* serverName = "http://192.168.1.11/smoke/api/api.php";
+const char* serverName = "http://10.35.96.202/api/api.php";
 
 // pin esp32
 const int mq2Pin = 34;      
