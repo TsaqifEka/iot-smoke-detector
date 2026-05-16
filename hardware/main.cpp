@@ -3,9 +3,9 @@
 #include <HTTPClient.h> 
 
 // konfigurasi wifi & server
-const char* ssid = "tsaqif";         
-const char* password = "tsaqif"; 
-const char* serverName = "http://192.168.1.11/smoke/api/api.php";
+const char* ssid = "LAPTOP-E8KL199E 6051";         
+const char* password = "11111111"; 
+const char* serverName = "http://smoke-detect.my.id/api/api.php";
 
 // pin esp32
 const int mq2Pin = 34;      
@@ -15,7 +15,7 @@ const int relayPin = 26;
 // variabel
 int sensorValue = 0;
 unsigned long waktuTerakhirKirim = 0;
-const unsigned long jedaKirim = 3000; 
+const unsigned long jedaKirim = 1000; 
 
 void setup() {
   Serial.begin(115200);
@@ -71,7 +71,9 @@ void loop() {
     int httpResponseCode = http.POST(httpRequestData);
     
     if (httpResponseCode > 0) {
-      Serial.println("Data Terkirim: " + String(sensorValue));
+      // Tambahkan 2 baris ini untuk melihat pesan asli dari api.php
+      Serial.print("HTTP Code: " + String(httpResponseCode) + " | ");
+      Serial.println("Balasan: " + http.getString());
     } else {
       Serial.println("Error HTTP: " + String(httpResponseCode));
     }

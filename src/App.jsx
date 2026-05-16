@@ -18,7 +18,7 @@ function App() {
   const [isAuto, setIsAuto] = useState(true);
 
   // URL Server VM (pastikan ada http:// di depannya)
-  const BASE_URL = "http://10.35.96.202/iot-testing/api";
+  const BASE_URL = "http://smoke-detect.my.id/api/api.php";
 
   // Efek jam real-time
   useEffect(() => {
