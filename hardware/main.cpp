@@ -9,8 +9,7 @@ const char* serverName = "http://192.168.1.11/smoke/api/api.php";
 
 // pin esp32
 const int mq2Pin = 34;      
-const int buzzerPin = 18;   
-const int ledPin = 4;       
+const int buzzerPin = 18;          
 const int relayPin = 26;    
 
 // variabel
