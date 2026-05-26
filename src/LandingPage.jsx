@@ -14,7 +14,7 @@ export default function LandingPage({ onGoToLogin }) {
           animate={{ scale: 1.1 }}
           transition={{ duration: 20, repeat: Infinity, repeatType: "alternate", ease: "easeInOut" }}
           className="h-full w-full bg-center bg-cover opacity-80"
-          style={{ backgroundImage: "url('  ')" }}
+          style={{ backgroundImage: "url(' https://images.unsplash.com/photo-1540518614846-7eded433c457?auto=format&fit=crop&w=1920&q=80 ')" }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent opacity-90" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/80" />
