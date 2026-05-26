@@ -10,7 +10,7 @@ export default function Dashboard({ token, onLogout }) {
   const [jam, setJam] = useState("");
   const [isAuto, setIsAuto] = useState(true);
 
-  const BASE_URL = "http://10.35.96.202/api";
+  const BASE_URL = "http://smoke-detect.my.id/api";
   const spotifyGreen = '#1ed760';
 
   // Update jam real-time
