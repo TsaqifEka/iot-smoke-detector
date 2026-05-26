@@ -10,6 +10,7 @@ export default function Dashboard({ token, onLogout }) {
   const [jam, setJam] = useState("");
   const [isAuto, setIsAuto] = useState(true);
 
+  // url dasar untuk API
   const BASE_URL = "/api";
   const spotifyGreen = '#1ed760';
 
