@@ -16,7 +16,7 @@ export default function Dashboard({ token, onLogout }) {
   const [filterTanggal, setFilterTanggal] = useState('ALL');
   const [filterStatus, setFilterStatus] = useState('ALL');
 
-  const BASE_URL = "/api";
+  const BASE_URL = "https://smoke-detect.my.id/api";
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -38,7 +38,6 @@ export default function Dashboard({ token, onLogout }) {
       if (data && data.length > 0) {
         setKadarAsap(parseInt(data[0].nilai_asap) || 0);
         
-        // Data di-reverse agar grafik bergerak dari kiri (lama) ke kanan (baru)
         const dataGrafik = [...data].reverse().map(item => {
           const splitWaktu = item.created_at ? item.created_at.split(' ') : ['', ''];
           return {
@@ -153,6 +152,89 @@ export default function Dashboard({ token, onLogout }) {
     return s === filterStatus;
   });
 
+  // ================= FUNGSI CETAK LAPORAN =================
+  const cetakLaporan = () => {
+    // Siapkan data yang sudah difilter dan dibalik (terbaru di atas)
+    const dataPrint = [...dataLogTampil].reverse();
+    
+    if (dataPrint.length === 0) {
+      alert("Tidak ada data untuk dicetak pada filter ini.");
+      return;
+    }
+
+    // Buka tab / window baru
+    const printWindow = window.open('', '_blank');
+    
+    // Susun template HTML untuk Print
+    const htmlIsi = `
+      <html>
+        <head>
+          <title>Cetak Laporan - Smart Exhaust</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #333; }
+            .kop { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+            .kop h2 { margin: 0; font-size: 24px; text-transform: uppercase; }
+            .kop p { margin: 5px 0 0 0; color: #666; font-size: 14px; }
+            .info { margin-bottom: 20px; font-size: 14px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            th { background-color: #f8f9fa; text-transform: uppercase; }
+            .status-normal { color: #16a34a; font-weight: bold; }
+            .status-waspada { color: #d97706; font-weight: bold; }
+            .status-kritis { color: #dc2626; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="kop">
+            <h2>Laporan Kualitas Udara (PPM)</h2>
+            <p>Sistem Smart Exhaust & Smoke Detector</p>
+          </div>
+          <div class="info">
+            <strong>Parameter Filter:</strong><br>
+            Tanggal: ${filterTanggal === 'ALL' ? 'Semua Riwayat' : formatHariTanggal(filterTanggal)}<br>
+            Kondisi: ${filterStatus === 'ALL' ? 'Semua Kondisi' : filterStatus}
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th width="5%">No</th>
+                <th width="20%">Tanggal</th>
+                <th width="20%">Waktu</th>
+                <th width="25%">Kadar Asap (PPM)</th>
+                <th width="30%">Status Lingkungan</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dataPrint.map((item, index) => {
+                let statusTeks = 'NORMAL';
+                let kelasWarna = 'status-normal';
+                if (item.asap >= 300 && item.asap <= 600) { statusTeks = 'WASPADA'; kelasWarna = 'status-waspada'; }
+                else if (item.asap > 600) { statusTeks = 'KRITIS'; kelasWarna = 'status-kritis'; }
+                
+                return `
+                  <tr>
+                    <td>${index + 1}</td>
+                    <td>${formatHariTanggal(item.tanggal)}</td>
+                    <td>${item.waktu}</td>
+                    <td>${item.asap} PPM</td>
+                    <td class="${kelasWarna}">${statusTeks}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+          <script>
+            // Otomatis memanggil dialog print saat halaman siap
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlIsi);
+    printWindow.document.close();
+  };
+
   return (
     <div className={`${theme.bg} ${theme.textMain} min-h-screen pb-12 transition-colors duration-500 font-sans relative`}>
       
@@ -203,6 +285,7 @@ export default function Dashboard({ token, onLogout }) {
           </div>
         )}
 
+        {/* METRIK UTAMA */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className={`${theme.bento} border rounded-[2rem] p-8 flex flex-col justify-between transition-all duration-500 shadow-sm`}>
             <div className="flex justify-between items-start mb-8">
@@ -275,6 +358,7 @@ export default function Dashboard({ token, onLogout }) {
           </div>
         </div>
 
+        {/* GRAFIK */}
         <div className={`${theme.bento} border rounded-[2rem] p-6 sm:p-8 transition-all duration-500 shadow-sm flex flex-col w-full`}>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <h2 className={`text-xs font-bold uppercase tracking-widest ${theme.textMuted}`}>Live Fluctuation Chart</h2>
@@ -310,11 +394,26 @@ export default function Dashboard({ token, onLogout }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-96">
+        {/* ================= BARIS 3: ACTIVITY LOGS & DEVICE HISTORY ================= */}
+        {/* PERBAIKAN: Tinggi (h) diubah agar adaptif di HP (h-auto), tapi fix di laptop (lg:h-[500px]) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-auto lg:h-[500px]">
           
-          <div className={`${theme.bento} border rounded-[2rem] p-6 sm:p-8 flex flex-col transition-all duration-500 shadow-sm overflow-hidden h-full`}>
+          <div className={`${theme.bento} border rounded-[2rem] p-6 sm:p-8 flex flex-col transition-all duration-500 shadow-sm overflow-hidden h-[400px] lg:h-full`}>
+            
+            {/* Header: Tambahan Tombol Print di Pojok Kanan */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <h2 className={`text-xs font-bold uppercase tracking-widest ${theme.textMuted}`}>Activity Logs</h2>
+              <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
+                 <h2 className={`text-xs font-bold uppercase tracking-widest ${theme.textMuted}`}>Activity Logs</h2>
+                 
+                 {/* TOMBOL CETAK/PRINT */}
+                 <button onClick={cetakLaporan} className="flex items-center gap-2 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white px-3 py-1.5 rounded-full border border-blue-500/20 transition-all">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Cetak</span>
+                 </button>
+              </div>
+
               <div className="flex flex-wrap gap-2">
                 {['ALL', 'NORMAL', 'WASPADA', 'KRITIS'].map(status => (
                   <button key={status} onClick={() => setFilterStatus(status)} className={`text-[9px] font-bold tracking-widest px-3 py-1.5 rounded-full border transition-all ${filterStatus === status ? (status === 'NORMAL' ? 'bg-green-500 text-white border-green-500' : status === 'WASPADA' ? 'bg-yellow-500 text-white border-yellow-500' : status === 'KRITIS' ? 'bg-red-500 text-white border-red-500' : 'bg-blue-500 text-white border-blue-500') : (isDarkMode ? 'bg-[#1a1a1a] text-neutral-400 border-neutral-800' : 'bg-slate-50 text-slate-500 border-slate-200')}`}>
@@ -325,8 +424,7 @@ export default function Dashboard({ token, onLogout }) {
             </div>
             
             <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
-              {/* PENAMBAHAN REVERSE DI SINI AGAR DATA TERBARU MUNCUL DI ATAS */}
-              {dataLogTampil.length > 0 ? [...dataLogTampil].reverse().slice(0, 30).map((item, index) => {
+              {dataLogTampil.length > 0 ? [...dataLogTampil].reverse().map((item, index) => {
                 let dotColor = 'bg-green-500';
                 let statusTeks = 'Normal';
                 if (item.asap >= 300 && item.asap <= 600) { dotColor = 'bg-yellow-500'; statusTeks = 'Waspada'; }
@@ -353,7 +451,7 @@ export default function Dashboard({ token, onLogout }) {
             </div>
           </div>
 
-          <div className={`${theme.bento} border rounded-[2rem] p-6 sm:p-8 flex flex-col transition-all duration-500 shadow-sm overflow-hidden h-full`}>
+          <div className={`${theme.bento} border rounded-[2rem] p-6 sm:p-8 flex flex-col transition-all duration-500 shadow-sm overflow-hidden h-[400px] lg:h-full`}>
             <div className="mb-6">
               <h2 className={`text-xs font-bold uppercase tracking-widest mb-1 ${theme.textMuted}`}>Device Connection History</h2>
               <p className={`text-[10px] ${theme.textMuted}`}>Catatan offline & reconnect ESP32 (Gap &gt; 20s)</p>

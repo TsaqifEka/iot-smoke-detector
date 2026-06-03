@@ -10,7 +10,7 @@ export default function LoginPage({ onLoginSuccess, onGoBack }) {
   const [isLoading, setIsLoading] = useState(false);
 
   // const BASE_URL = "/api";
-  const BASE_URL = "/api";
+  const BASE_URL = "https://smoke-detect.my.id/api";
 
   const spotifyGreen = '#1ed760';
 
