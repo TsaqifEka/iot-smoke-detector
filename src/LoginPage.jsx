@@ -9,7 +9,9 @@ export default function LoginPage({ onLoginSuccess, onGoBack }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // const BASE_URL = "/api";
   const BASE_URL = "/api";
+
   const spotifyGreen = '#1ed760';
 
   const handleLogin = async (e) => {
