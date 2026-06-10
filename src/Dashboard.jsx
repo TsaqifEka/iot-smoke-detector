@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts';
+import mqtt from 'mqtt'; // <-- IMPORT MESIN MQTT
 
 export default function Dashboard({ token, onLogout }) {
   const [kadarAsap, setKadarAsap] = useState(0);
@@ -16,7 +17,70 @@ export default function Dashboard({ token, onLogout }) {
   const [filterTanggal, setFilterTanggal] = useState('ALL');
   const [filterStatus, setFilterStatus] = useState('ALL');
 
+  // --- STATE KHUSUS MQTT ---
+  const [mqttClient, setMqttClient] = useState(null);
+  const [koneksiMqtt, setKoneksiMqtt] = useState(false);
+  const topikKendali = 'tsaqif_ub_vm17/kendali_kipas';
+
   const BASE_URL = "https://smoke-detect.my.id/api";
+
+  // ================= FUNGSI KONEKSI MQTT (WebSockets) =================
+  useEffect(() => {
+    const urlBroker = 'wss://broker.emqx.io:8084/mqtt';
+    const client = mqtt.connect(urlBroker, {
+      clientId: 'ReactDashboard_' + Math.random().toString(16).substring(2, 8),
+      clean: true,
+      connectTimeout: 4000,
+      reconnectPeriod: 1000,
+    });
+
+    client.on('connect', () => {
+      console.log('✅ UI Control Center terhubung ke MQTT Broker!');
+      setKoneksiMqtt(true);
+      setMqttClient(client);
+    });
+
+    client.on('disconnect', () => setKoneksiMqtt(false));
+
+    return () => client.end();
+  }, []);
+
+  // ================= TRIGGER AKSI KONTROL =================
+  const handleToggleMode = () => {
+    const modeBaru = !isAuto;
+    setIsAuto(modeBaru);
+    
+    if (mqttClient && koneksiMqtt) {
+      if (modeBaru === true) {
+        mqttClient.publish(topikKendali, 'AUTO');
+      } else {
+        // PERUBAHAN: Bedakan perintah berdasarkan posisi slider saat ini
+        let perintah = 'MANUAL_OFF';
+        if (manualSpeed === 'LOW') perintah = 'MANUAL_LOW';
+        if (manualSpeed === 'HIGH') perintah = 'MANUAL_HIGH';
+        
+        mqttClient.publish(topikKendali, perintah);
+      }
+    }
+  };
+
+  const handleSliderChange = (e) => {
+    const indexBaru = e.target.value;
+    const speedLevels = ['OFF', 'LOW', 'HIGH'];
+    const speedBaru = speedLevels[indexBaru];
+    
+    setManualSpeed(speedBaru);
+
+    if (!isAuto && mqttClient && koneksiMqtt) {
+      // PERUBAHAN: Tembak perintah spesifik ke ESP32
+      let perintah = 'MANUAL_OFF';
+      if (speedBaru === 'LOW') perintah = 'MANUAL_LOW';
+      if (speedBaru === 'HIGH') perintah = 'MANUAL_HIGH';
+      
+      mqttClient.publish(topikKendali, perintah);
+    }
+  };
+
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -152,20 +216,13 @@ export default function Dashboard({ token, onLogout }) {
     return s === filterStatus;
   });
 
-  // ================= FUNGSI CETAK LAPORAN =================
   const cetakLaporan = () => {
-    // Siapkan data yang sudah difilter dan dibalik (terbaru di atas)
     const dataPrint = [...dataLogTampil].reverse();
-    
     if (dataPrint.length === 0) {
       alert("Tidak ada data untuk dicetak pada filter ini.");
       return;
     }
-
-    // Buka tab / window baru
     const printWindow = window.open('', '_blank');
-    
-    // Susun template HTML untuk Print
     const htmlIsi = `
       <html>
         <head>
@@ -210,7 +267,6 @@ export default function Dashboard({ token, onLogout }) {
                 let kelasWarna = 'status-normal';
                 if (item.asap >= 300 && item.asap <= 600) { statusTeks = 'WASPADA'; kelasWarna = 'status-waspada'; }
                 else if (item.asap > 600) { statusTeks = 'KRITIS'; kelasWarna = 'status-kritis'; }
-                
                 return `
                   <tr>
                     <td>${index + 1}</td>
@@ -224,13 +280,11 @@ export default function Dashboard({ token, onLogout }) {
             </tbody>
           </table>
           <script>
-            // Otomatis memanggil dialog print saat halaman siap
             window.onload = function() { window.print(); }
           </script>
         </body>
       </html>
     `;
-
     printWindow.document.write(htmlIsi);
     printWindow.document.close();
   };
@@ -285,7 +339,6 @@ export default function Dashboard({ token, onLogout }) {
           </div>
         )}
 
-        {/* METRIK UTAMA */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className={`${theme.bento} border rounded-[2rem] p-8 flex flex-col justify-between transition-all duration-500 shadow-sm`}>
             <div className="flex justify-between items-start mb-8">
@@ -325,29 +378,44 @@ export default function Dashboard({ token, onLogout }) {
             </div>
           </div>
 
+          {/* ================= AREA CONTROL CENTER ================= */}
           <div className={`${theme.bento} border rounded-[2rem] p-8 flex flex-col justify-between transition-all duration-500 shadow-sm`}>
             <div>
               <div className="flex justify-between items-center mb-6">
-                <h2 className={`text-xs font-bold uppercase tracking-widest ${theme.textMuted}`}>Control Center</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className={`text-xs font-bold uppercase tracking-widest ${theme.textMuted}`}>Control Center</h2>
+                  {/* Indikator koneksi MQTT untuk kendali kipas */}
+                  <div className={`w-1.5 h-1.5 rounded-full ${koneksiMqtt ? 'bg-blue-500' : 'bg-red-500'}`} title={koneksiMqtt ? "Kontrol Terhubung" : "Menghubungkan kontrol..."}></div>
+                </div>
                 <div className={`px-2 py-1 rounded text-[9px] font-bold tracking-widest ${isAuto ? 'bg-green-500/20 text-green-500' : 'bg-neutral-500/20 text-neutral-400'}`}>
                   {isAuto ? 'AUTO' : 'MANUAL'}
                 </div>
               </div>
-              <div className={`p-4 rounded-xl border cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-between ${isDarkMode ? 'bg-[#1a1a1a] border-neutral-800' : 'bg-slate-50 border-slate-200'}`} onClick={() => setIsAuto(!isAuto)}>
+              
+              {/* Event handler handleToggleMode disematkan di sini */}
+              <div className={`p-4 rounded-xl border cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-between ${isDarkMode ? 'bg-[#1a1a1a] border-neutral-800' : 'bg-slate-50 border-slate-200'}`} 
+                   onClick={handleToggleMode}>
                 <span className="text-xs font-bold uppercase tracking-widest">System Mode</span>
                 <div className={`w-12 h-6 rounded-full p-1 flex items-center transition-colors duration-300 ${isAuto ? 'bg-green-500' : (isDarkMode ? 'bg-neutral-600' : 'bg-slate-300')}`}>
                   <div className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform duration-300 ${isAuto ? 'translate-x-6' : 'translate-x-0'}`}></div>
                 </div>
               </div>
             </div>
+
             <div className={`mt-8 transition-all duration-500 ${isAuto ? 'opacity-30 pointer-events-none grayscale blur-[1px]' : ''}`}>
               <div className="flex justify-between items-end mb-4">
                 <h3 className={`text-[10px] font-bold uppercase tracking-widest ${theme.textMuted}`}>Drag to Adjust</h3>
                 <span className="text-xl font-black">{manualSpeed}</span>
               </div>
               <div className="w-full relative py-2">
-                <input type="range" min="0" max="2" step="1" value={currentSpeedIndex} onChange={(e) => setManualSpeed(speedLevels[e.target.value])} className={`w-full h-3 rounded-full appearance-none cursor-pointer focus:outline-none transition-all duration-300 ${isDarkMode ? 'bg-neutral-800' : 'bg-slate-300'}`}
-                  style={{ background: `linear-gradient(to right, ${manualSpeed === 'OFF' ? '#64748b' : manualSpeed === 'LOW' ? '#eab308' : '#ef4444'} ${(currentSpeedIndex / 2) * 100}%, ${isDarkMode ? '#262626' : '#cbd5e1'} ${(currentSpeedIndex / 2) * 100}%)` }} />
+                
+                {/* Event handler handleSliderChange disematkan di sini */}
+                <input type="range" min="0" max="2" step="1" 
+                       value={currentSpeedIndex} 
+                       onChange={handleSliderChange} 
+                       className={`w-full h-3 rounded-full appearance-none cursor-pointer focus:outline-none transition-all duration-300 ${isDarkMode ? 'bg-neutral-800' : 'bg-slate-300'}`}
+                       style={{ background: `linear-gradient(to right, ${manualSpeed === 'OFF' ? '#64748b' : manualSpeed === 'LOW' ? '#eab308' : '#ef4444'} ${(currentSpeedIndex / 2) * 100}%, ${isDarkMode ? '#262626' : '#cbd5e1'} ${(currentSpeedIndex / 2) * 100}%)` }} />
+                
                 <div className="flex justify-between w-full mt-4">
                   <span className={`text-[10px] font-bold transition-colors ${manualSpeed === 'OFF' ? theme.textMain : theme.textMuted}`}>OFF</span>
                   <span className={`text-[10px] font-bold transition-colors ${manualSpeed === 'LOW' ? theme.textMain : theme.textMuted}`}>LOW</span>
@@ -394,18 +462,15 @@ export default function Dashboard({ token, onLogout }) {
           </div>
         </div>
 
-        {/* ================= BARIS 3: ACTIVITY LOGS & DEVICE HISTORY ================= */}
-        {/* PERBAIKAN: Tinggi (h) diubah agar adaptif di HP (h-auto), tapi fix di laptop (lg:h-[500px]) */}
+        {/* ACTIVITY LOGS & DEVICE HISTORY */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-auto lg:h-[500px]">
           
           <div className={`${theme.bento} border rounded-[2rem] p-6 sm:p-8 flex flex-col transition-all duration-500 shadow-sm overflow-hidden h-[400px] lg:h-full`}>
             
-            {/* Header: Tambahan Tombol Print di Pojok Kanan */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
                  <h2 className={`text-xs font-bold uppercase tracking-widest ${theme.textMuted}`}>Activity Logs</h2>
                  
-                 {/* TOMBOL CETAK/PRINT */}
                  <button onClick={cetakLaporan} className="flex items-center gap-2 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white px-3 py-1.5 rounded-full border border-blue-500/20 transition-all">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
